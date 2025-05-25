@@ -1,4 +1,5 @@
 import { formatCategoryName, formatDateToInput, parseInputDate } from './utils.js';
+import { safeParseFloat } from './utils.js';
 
 // Références aux éléments DOM
 const totalIncomeEl = document.getElementById('total-income');
@@ -56,8 +57,6 @@ const exportPdfButtonContent = document.getElementById('export-pdf-button-conten
 const originalExportBtnContent = exportPdfButtonContent.innerHTML; // Stocker le contenu original
 
 // Exporte les références DOM nécessaires pour main.js
-// Notez que showPdfExportLoading et hidePdfExportLoading ne sont plus listées ici
-// car elles seront exportées directement avec leur déclaration de fonction.
 export {
     tabTransactions, tabReport, sectionTransactions, sectionReport,
     filterType, filterCategory, filterDate, searchTermInput,
@@ -129,16 +128,16 @@ export function renderTransactionsTable(transactionsToDisplay, totalTransactions
             const row = document.createElement('tr');
             row.className = 'transaction-row';
             
-            const transactionDate = transaction.date && typeof transaction.date.toDate === 'function' 
-                                  ? transaction.date.toDate() 
-                                  : (transaction.date instanceof Date ? transaction.date : new Date(0));
+            // transaction.date est déjà un objet Date JS standard grâce à main.js onSnapshot
+            const transactionDate = transaction.date; 
             const formattedDate = transactionDate.toLocaleDateString('fr-FR');
             const formattedAmount = (transaction.amount || 0).toFixed(2).replace('.', ',') + ' €';
             const amountClass = transaction.type === 'income' ? 'text-green-600' : 'text-red-600';
             const typeLabel = transaction.type === 'income' ? 'Recette' : 'Dépense';
             const typeClass = transaction.type === 'income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
             
-            const factureLink = transaction.Facture && transaction.Facture.startsWith('http') ? transaction.Facture : null;
+            // Utilisation des champs en camelCase pour la lecture
+            const factureLink = transaction.facture && transaction.facture.startsWith('http') ? transaction.facture : null;
             const factureContent = factureLink 
                 ? `<a href="${factureLink}" target="_blank" class="text-blue-600 hover:text-blue-800 inline-flex items-center" title="Voir la facture">
                     <i class="fas fa-file-alt mr-1"></i> <i class="fas fa-external-link-alt text-xs"></i>
@@ -148,8 +147,8 @@ export function renderTransactionsTable(transactionsToDisplay, totalTransactions
             row.innerHTML = `
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${formattedDate}</td>
                 <td class="px-6 py-4 text-sm text-gray-900">${transaction.description || ''}</td>
-                <td class="px-6 py-4 text-sm text-gray-900">${transaction.Evenement || ''}</td>
-                <td class="px-6 py-4 text-sm text-gray-900">${transaction.Propriétaire || ''}</td>
+                <td class="px-6 py-4 text-sm text-gray-900">${transaction.evenement || ''}</td>
+                <td class="px-6 py-4 text-sm text-gray-900">${transaction.proprietaire || ''}</td>
                 <td class="px-6 py-4 text-sm text-gray-900">${formatCategoryName(transaction.category)}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium ${amountClass}">${formattedAmount}</td>
                 <td class="px-6 py-4 whitespace-nowrap">
@@ -192,7 +191,7 @@ export function openAddTransactionModal() {
     transactionForm.reset();
     transactionDateInput.valueAsDate = new Date();
     
-    // Initialisation des champs supplémentaires
+    // Initialisation des champs supplémentaires en camelCase
     transactionEvenementInput.value = '';
     transactionProprietaireInput.value = '';
     transactionMoyenPaiementInput.value = '';
@@ -206,14 +205,15 @@ export function openAddTransactionModal() {
 export function openEditTransactionModal(transaction) {
     modalTitle.textContent = 'Modifier la transaction';
     transactionIdInput.value = transaction.id;
+    // transaction.date est déjà un objet Date JS
     transactionDateInput.value = formatDateToInput(transaction.date); 
     
-    // Remplissage des champs supplémentaires
-    transactionEvenementInput.value = transaction.Evenement || '';
-    transactionProprietaireInput.value = transaction.Propriétaire || '';
-    transactionMoyenPaiementInput.value = transaction.MoyenPaiement || '';
-    transactionPaimentPlusInput.value = transaction.PaimentPlus || '';
-    transactionFactureInput.value = transaction.Facture || '';
+    // Remplissage des champs supplémentaires en camelCase
+    transactionEvenementInput.value = transaction.evenement || '';
+    transactionProprietaireInput.value = transaction.proprietaire || '';
+    transactionMoyenPaiementInput.value = transaction.moyenPaiement || '';
+    transactionPaimentPlusInput.value = transaction.paiementPlus || '';
+    transactionFactureInput.value = transaction.facture || '';
     
     transactionDescriptionInput.value = transaction.description || '';
     transactionCategorySelect.value = transaction.category || '';
@@ -241,11 +241,12 @@ export function getTransactionFormData() {
     const date = parseInputDate(transactionDateInput.value);
     const description = transactionDescriptionInput.value;
     const category = transactionCategorySelect.value;
-    const amount = parseFloat(transactionAmountInput.value);
+    // Utiliser safeParseFloat pour s'assurer que le montant est bien un nombre, gère les virgules
+    const amount = safeParseFloat(transactionAmountInput.value); 
     const type = document.querySelector('input[name="transaction-type"]:checked').value;
     const notes = transactionNotesInput.value;
 
-    // Récupération des valeurs des champs supplémentaires
+    // Récupération des valeurs des champs supplémentaires, pour les envoyer en camelCase
     const evenement = transactionEvenementInput.value;
     const proprietaire = transactionProprietaireInput.value;
     const moyenPaiement = transactionMoyenPaiementInput.value;
@@ -256,14 +257,14 @@ export function getTransactionFormData() {
         id: currentTransactionDocId,
         date,
         description,
-        Evenement: evenement || null,
-        Propriétaire: proprietaire || null,
+        evenement: evenement || null, // Clé en camelCase
+        proprietaire: proprietaire || null, // Clé en camelCase
         category,
         amount,
         type,
-        MoyenPaiement: moyenPaiement || null,
-        PaimentPlus: paimentPlus || null,
-        Facture: facture || null,
+        moyenPaiement: moyenPaiement || null, // Clé en camelCase
+        paiementPlus: paimentPlus || null, // Clé en camelCase
+        facture: facture || null, // Clé en camelCase
         notes: notes || null
     };
 }
@@ -300,11 +301,10 @@ export function setupTableActionListeners(onEdit, onDelete) {
     });
 }
 
-// Fonctions pour gérer le spinner du bouton PDF (Maintenant exportées à la déclaration)
+// Fonctions pour gérer le spinner du bouton PDF
 export function showPdfExportLoading() {
     exportPdfBtn.disabled = true;
     exportPdfButtonContent.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Génération...';
-    // Ajout d'une classe pour rendre le bouton opaque et non cliquable visuellement
     exportPdfBtn.classList.add('opacity-50', 'cursor-not-allowed'); 
 }
 
