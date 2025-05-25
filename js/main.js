@@ -37,18 +37,9 @@ function getSchoolYearForDate(dateObj) {
 function populateSchoolYearSelect(allTransactions) {
     const uniqueYears = new Set();
     allTransactions.forEach(t => {
-        let dateObj;
-        if (t.date && typeof t.date.toDate === 'function') {
-            dateObj = t.date.toDate();
-        } else if (t.date instanceof Date) {
-            dateObj = t.date;
-        } else if (typeof t.date === 'string') {
-            const parts = t.date.split('/');
-            dateObj = (parts.length === 3) ? new Date(`${parts[2]}-${parts[1]}-${parts[0]}`) : null;
-        }
-        
-        if (dateObj && !isNaN(dateObj.getTime())) {
-            uniqueYears.add(getSchoolYearForDate(dateObj));
+        // La date est déjà un objet Date JS standard
+        if (t.date && !isNaN(t.date.getTime())) {
+            uniqueYears.add(getSchoolYearForDate(t.date));
         }
     });
 
@@ -90,16 +81,8 @@ function applyAllFilters(allTransactions) {
     // FILTRE : Année scolaire sélectionnée (Appliqué en premier)
     if (currentSchoolYear) {
         filtered = filtered.filter(t => {
-            let dateObj;
-            if (t.date && typeof t.date.toDate === 'function') {
-                dateObj = t.date.toDate();
-            } else if (t.date instanceof Date) {
-                dateObj = t.date;
-            } else if (typeof t.date === 'string') {
-                const parts = t.date.split('/');
-                dateObj = (parts.length === 3) ? new Date(`${parts[2]}-${parts[1]}-${parts[0]}`) : null;
-            }
-            return dateObj && getSchoolYearForDate(dateObj) === currentSchoolYear;
+            // t.date est déjà un objet Date JS standard
+            return t.date && getSchoolYearForDate(t.date) === currentSchoolYear;
         });
     }
 
@@ -120,19 +103,8 @@ function applyAllFilters(allTransactions) {
         const currentYear = today.getFullYear();
         
         filtered = filtered.filter(t => {
-            let transactionDate;
-            if (t.date && typeof t.date.toDate === 'function') { 
-                transactionDate = t.date.toDate();
-            } else if (t.date instanceof Date) { 
-                transactionDate = t.date;
-            } else if (typeof t.date === 'string') { 
-                const parts = t.date.split('/');
-                transactionDate = (parts.length === 3) ? new Date(`${parts[2]}-${parts[1]}-${parts[0]}`) : new Date(0);
-            } else {
-                return false; 
-            }
-
-            if (isNaN(transactionDate.getTime())) return false; 
+            let transactionDate = t.date; // C'est déjà un objet Date JS
+            if (!transactionDate || isNaN(transactionDate.getTime())) return false; 
 
             const transactionMonth = transactionDate.getMonth();
             const transactionYear = transactionDate.getFullYear();
@@ -155,9 +127,10 @@ function applyAllFilters(allTransactions) {
     if (searchTerm) {
         filtered = filtered.filter(t => {
             const desc = (t.description || '').toLowerCase();
-            const event = (t.Evenement || '').toLowerCase(); 
-            const owner = (t.Propriétaire || '').toLowerCase(); 
-            return desc.includes(searchTerm) || event.includes(searchTerm) || owner.includes(searchTerm);
+            // Utilisation des noms de champs normalisés (camelCase)
+            const evenement = (t.evenement || '').toLowerCase(); 
+            const proprietaire = (t.proprietaire || '').toLowerCase(); 
+            return desc.includes(searchTerm) || evenement.includes(searchTerm) || proprietaire.includes(searchTerm);
         });
     }
 
@@ -171,8 +144,9 @@ function applySorting(transactionsToSort) {
         let valA, valB;
 
         if (sortColumn === 'date') {
-            valA = (a.date && typeof a.date.toDate === 'function') ? a.date.toDate().getTime() : (a.date instanceof Date ? a.date.getTime() : 0);
-            valB = (b.date && typeof b.date.toDate === 'function') ? b.date.toDate().getTime() : (b.date instanceof Date ? b.date.getTime() : 0);
+            // La date est déjà un objet Date JS ici
+            valA = a.date instanceof Date ? a.date.getTime() : 0;
+            valB = b.date instanceof Date ? b.date.getTime() : 0;
         } else if (sortColumn === 'amount') {
             valA = a.amount || 0;
             valB = b.amount || 0;
@@ -186,14 +160,15 @@ function applySorting(transactionsToSort) {
             valA = a.description || '';
             valB = b.description || '';
         } else if (sortColumn === 'evenement') { 
-            valA = a.Evenement || '';
-            valB = b.Evenement || '';
+            valA = a.evenement || ''; // Utilisation du camelCase
+            valB = b.evenement || ''; // Utilisation du camelCase
         } else if (sortColumn === 'proprietaire') { 
-            valA = a.Propriétaire || '';
-            valB = b.Propriétaire || '';
+            valA = a.proprietaire || ''; // Utilisation du camelCase
+            valB = b.proprietaire || ''; // Utilisation du camelCase
         } else {
-            valA = (a.date && typeof a.date.toDate === 'function') ? a.date.toDate().getTime() : (a.date instanceof Date ? a.date.getTime() : 0);
-            valB = (b.date && typeof b.date.toDate === 'function') ? b.date.toDate().getTime() : (b.date instanceof Date ? b.date.getTime() : 0);
+            // Fallback pour le tri par date
+            valA = a.date instanceof Date ? a.date.getTime() : 0;
+            valB = b.date instanceof Date ? b.date.getTime() : 0;
         }
 
         if (typeof valA === 'string' && typeof valB === 'string') {
@@ -220,18 +195,21 @@ function refreshDashboardUI() {
     const transactionsToDisplay = filteredAndSortedTransactions.slice(startIndex, endIndex);
 
     ui.renderTransactionsTable(transactionsToDisplay, filteredAndSortedTransactions.length, currentPage, itemsPerPage);
-    ui.updateSummary(transactions); 
-    ui.initCategoryFilter(transactions); 
+    // Passer toutes les transactions non filtrées aux fonctions de résumé et de graphiques pour l'année scolaire en cours
+    // Cela permet aux graphiques d'utiliser toutes les données de l'année, indépendamment des filtres de la table.
+    const transactionsForReports = applyAllFilters(transactions); // Réappliquer le filtre d'année scolaire
+    ui.updateSummary(transactionsForReports); 
+    ui.initCategoryFilter(transactionsForReports); 
     
     if (!ui.sectionReport.classList.contains('hidden')) {
-        reports.renderCharts(transactions); 
-        reports.renderCategorySummary(transactions); 
+        reports.renderCharts(transactionsForReports); 
+        reports.renderCategorySummary(transactionsForReports); 
     }
 
     document.querySelectorAll('th[data-sort-key]').forEach(header => {
         const key = header.dataset.sortKey;
         header.classList.remove('sorted-asc', 'sorted-desc');
-        const icon = header.querySelector('.fas');
+        const icon = header.querySelector('i.fas'); // Changed to select the icon specifically
         if (icon) {
             icon.classList.remove('fa-sort-up', 'fa-sort-down', 'fa-sort');
             if (sortColumn === key) {
@@ -246,16 +224,17 @@ function refreshDashboardUI() {
 
 async function handleSaveTransaction(formData) {
     const transactionData = {
-        date: firebase.firestore.Timestamp.fromDate(formData.date),
+        date: firebase.firestore.Timestamp.fromDate(formData.date), // formData.date est déjà un objet Date JS
         description: formData.description,
-        Evenement: formData.Evenement || null, 
-        Propriétaire: formData.Propriétaire || null, 
+        // Utilisation des noms de champs normalisés (camelCase) pour l'enregistrement
+        evenement: formData.evenement || null, 
+        proprietaire: formData.proprietaire || null, 
         category: formData.category,
         amount: formData.amount,
         type: formData.type,
-        MoyenPaiement: formData.MoyenPaiement || null, 
-        PaimentPlus: formData.PaimentPlus || null, 
-        Facture: formData.Facture || null, 
+        moyenPaiement: formData.moyenPaiement || null, 
+        paiementPlus: formData.paiementPlus || null, 
+        facture: formData.facture || null, 
         notes: formData.notes || null 
     };
 
@@ -375,8 +354,9 @@ document.addEventListener('DOMContentLoaded', function() {
         ui.tabTransactions.classList.remove('tab-active');
         ui.sectionReport.classList.remove('hidden');
         ui.sectionTransactions.classList.add('hidden');
-        reports.renderCharts(transactions); 
-        reports.renderCategorySummary(transactions); 
+        const transactionsForReports = applyAllFilters(transactions); // Réappliquer le filtre d'année scolaire
+        reports.renderCharts(transactionsForReports); 
+        reports.renderCategorySummary(transactionsForReports); 
     });
     
     ui.filterType.addEventListener('change', () => { currentPage = 1; refreshDashboardUI(); });
@@ -450,34 +430,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 transactions = snapshot.docs.map(doc => {
                     const rawData = doc.data(); 
                     
-                    let transformedAmount = 0;
-                    let transformedType = 'expense'; 
+                    let transformedAmount = safeParseFloat(rawData.amount || rawData.Montant || 0);
+                    
+                    let transformedType = 'expense'; // Default value
 
-                    if (rawData.Montant !== undefined) {
-                        transformedAmount = safeParseFloat(rawData.Montant);
-                    } else if (rawData.amount !== undefined) {
-                        transformedAmount = safeParseFloat(rawData.amount);
+                    // Priorité 1 : Le champ 'type' (celui qui est enregistré par le dashboard)
+                    if (rawData.type === 'income' || rawData.type === 'expense') {
+                        transformedType = rawData.type;
                     }
-
-                    const rawCsvType = String(rawData.Type || '').toLowerCase().trim();
-                    const rawDashboardType = String(rawData.type || '').toLowerCase().trim();
-
-                    if (rawCsvType === 'recette' || rawCsvType === 'income') {
-                        transformedType = 'income';
-                    } else if (rawCsvType === 'depense' || rawCsvType === 'expense') {
-                        transformedType = 'expense';
-                    } else if (rawDashboardType === 'income') {
-                        transformedType = 'income';
-                    } else if (rawDashboardType === 'expense') {
-                        transformedType = 'expense';
-                    } else {
-                        if (transformedAmount > 0) {
-                            transformedType = 'expense'; 
+                    // Priorité 2 : Le champ 'Type' (celui potentiellement issu de l'import CSV)
+                    else if (rawData.Type) {
+                        const rawCsvType = String(rawData.Type).toLowerCase().trim();
+                        if (rawCsvType === 'recette' || rawCsvType === 'income') {
+                            transformedType = 'income';
+                        } else if (rawCsvType === 'depense' || rawCsvType === 'expense') {
+                            transformedType = 'expense';
                         }
                     }
                     
                     // Standardisation de la catégorie
-                    let category = String(rawData.Categorie || rawData.category || '').trim();
+                    let category = String(rawData.category || rawData.Categorie || '').trim();
                     category = category.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
                     const csvCategoryMap = {
@@ -523,30 +495,47 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }
 
-                    let transactionDate = rawData.Date;
-                    if (typeof transactionDate === 'string' && transactionDate.includes('/')) {
-                        const parts = transactionDate.split('/');
-                        if (parts.length === 3) {
-                            transactionDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00Z`);
-                            transactionDate = firebase.firestore.Timestamp.fromDate(transactionDate); 
-                        }
-                    } else if (transactionDate instanceof Date) { 
-                        transactionDate = firebase.firestore.Timestamp.fromDate(transactionDate);
-                    }
+                    // --- Correction CRUCIALE pour les dates ---
+                    let transactionDateObj = null;
+                    // Tente de récupérer la date depuis 'date' (lowercase) ou 'Date' (PascalCase)
+                    const rawDateValue = rawData.date || rawData.Date; 
 
+                    if (rawDateValue) {
+                        if (typeof rawDateValue.toDate === 'function') { // C'est un Firestore Timestamp
+                            transactionDateObj = rawDateValue.toDate(); // Convertit en Date JS
+                        } else if (rawDateValue instanceof Date) { // C'est déjà un Date JS
+                            transactionDateObj = rawDateValue;
+                        } else if (typeof rawDateValue === 'string') { // C'est une chaîne, essaie de la parser
+                            const parts = rawDateValue.split('/');
+                            if (parts.length === 3) { // Format DD/MM/YYYY
+                                // Utilise Date.UTC pour éviter les problèmes de fuseau horaire
+                                transactionDateObj = new Date(Date.UTC(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0])));
+                            } else {
+                                // Essaie le format YYYY-MM-DD ou d'autres formats reconnus par new Date()
+                                transactionDateObj = new Date(rawDateValue); 
+                            }
+                        }
+                    }
+                    
+                    // Fallback à new Date(0) si après toutes les tentatives, la date est invalide
+                    if (!transactionDateObj || isNaN(transactionDateObj.getTime())) {
+                        transactionDateObj = new Date(0); 
+                    }
+                    // --- Fin de correction des dates ---
 
                     const transformedTransaction = {
                         id: doc.id,
-                        date: transactionDate,
-                        description: rawData.Description || rawData.description || '', 
-                        Evenement: rawData.Evenement || '',
-                        Propriétaire: rawData.Propriétaire || '',
+                        date: transactionDateObj, // Stocke toujours un objet Date JS
+                        description: rawData.description || rawData.Description || '', 
+                        // Lecture des champs en camelCase en priorité, avec fallback PascalCase pour compatibilité
+                        evenement: rawData.evenement || rawData.Evenement || '',
+                        proprietaire: rawData.proprietaire || rawData.Propriétaire || '',
                         category: category,
                         amount: transformedAmount,
                         type: transformedType,
-                        MoyenPaiement: rawData['Moyen Paiement'] || '',
-                        PaimentPlus: rawData['Paiment Plus'] || '',
-                        Facture: rawData.Facture || '',
+                        moyenPaiement: rawData.moyenPaiement || rawData['Moyen Paiement'] || '',
+                        paiementPlus: rawData.paiementPlus || rawData['Paiment Plus'] || '',
+                        facture: rawData.facture || rawData.Facture || '',
                         notes: rawData.notes || '', 
                     };
 
