@@ -70,3 +70,46 @@ th[data-sort-key].sorted-desc .fas {
     border-radius: 10px;
     border: 2px solid #edf2f7;
 }
+
+/* --- NOUVEAU CSS POUR LES CARTES DE RÉSUMÉ --- */
+
+/* Keyframes pour l'animation d'apparition */
+@keyframes fadeInSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px); /* Commence 20px plus bas */
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0); /* Finit à sa position normale */
+    }
+}
+
+/* Styles pour les cartes de résumé financier (Recettes, Dépenses, Solde) */
+/* Cible les divs directes à l'intérieur de la grille de résumé */
+.grid.grid-cols-1.md\:grid-cols-3.gap-6.mb-8 > div {
+    /* Transitions pour les effets de survol */
+    transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+    
+    /* Animation d'apparition */
+    opacity: 0; /* Commence invisible */
+    animation: fadeInSlideUp 0.6s ease-out forwards; /* Nom, durée, fonction de temps, mode de remplissage */
+    /* Le 'forwards' est important pour que l'élément reste à l'état final de l'animation */
+}
+
+/* Délai pour étager l'animation des cartes (une après l'autre) */
+.grid.grid-cols-1.md\:grid-cols-3.gap-6.mb-8 > div:nth-child(1) {
+    animation-delay: 0.1s; /* Première carte apparaît après 0.1s */
+}
+.grid.grid-cols-1.md\:grid-cols-3.gap-6.mb-8 > div:nth-child(2) {
+    animation-delay: 0.2s; /* Deuxième carte apparaît après 0.2s */
+}
+.grid.grid-cols-1.md\:grid-cols-3.gap-6.mb-8 > div:nth-child(3) {
+    animation-delay: 0.3s; /* Troisième carte apparaît après 0.3s */
+}
+
+/* Effet de survol (hover) pour les cartes */
+.grid.grid-cols-1.md\:grid-cols-3.gap-6.mb-8 > div:hover {
+    transform: translateY(-5px) scale(1.01); /* Soulève légèrement et agrandit un peu */
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* Ombre plus prononcée */
+}
