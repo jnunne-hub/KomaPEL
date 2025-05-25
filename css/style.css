@@ -1,0 +1,72 @@
+/* Custom Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: #f0f4f8; /* Just in case gradient doesn't cover all */
+}
+
+/* Specific Tailwind overrides/additions */
+.transaction-row:hover {
+    background-color: #f1f5f9;
+}
+
+.tab-active {
+    border-bottom: 3px solid #3b82f6; /* blue-500 */
+    color: #1e40af; /* indigo-800 */
+    font-weight: 600;
+}
+
+/* Ensure Chart.js canvases fit their containers */
+canvas {
+    max-width: 100%;
+    height: auto; /* Important for responsiveness */
+}
+/* Style for sort icons */
+th[data-sort-key] .fas {
+    margin-left: 0.25rem;
+    color: #9ca3af; /* gray-400 */
+}
+
+th[data-sort-key].sorted-asc .fas {
+    color: #4a5568; /* darker gray */
+    transform: rotate(180deg); /* Arrow up */
+}
+
+th[data-sort-key].sorted-desc .fas {
+    color: #4a5568; /* darker gray */
+    transform: rotate(0deg); /* Arrow down */
+}
+
+/* Hide sorting arrow by default, show on hover or when sorted */
+th[data-sort-key] .fas {
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+th[data-sort-key]:hover .fas,
+th[data-sort-key].sorted-asc .fas,
+th[data-sort-key].sorted-desc .fas {
+    opacity: 1;
+}
+
+/* Custom scrollbar for modal content (Firefox & Webkit) */
+.custom-modal-scrollbar {
+    scrollbar-width: thin; /* For Firefox */
+    scrollbar-color: #a0aec0 #edf2f7; /* thumb and track color */
+}
+
+.custom-modal-scrollbar::-webkit-scrollbar {
+    width: 8px;
+}
+
+.custom-modal-scrollbar::-webkit-scrollbar-track {
+    background: #edf2f7;
+    border-radius: 10px;
+}
+
+.custom-modal-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #a0aec0; /* gray-400 */
+    border-radius: 10px;
+    border: 2px solid #edf2f7;
+}
