@@ -1,4 +1,4 @@
-// reports.js (Inchangé)
+// reports.js
 import { formatCategoryName } from './utils.js';
 
 const monthlyChartCanvas = document.getElementById('monthly-chart');
@@ -23,18 +23,8 @@ export function renderMonthlyChart(transactions) {
     const expenseData = Array(12).fill(0);
     
     transactions.forEach(transaction => {
-        let transactionDate;
-        if (transaction.date && typeof transaction.date.toDate === 'function') { // Firestore Timestamp
-            transactionDate = transaction.date.toDate();
-        } else if (transaction.date instanceof Date) { // JavaScript Date object
-            transactionDate = transaction.date;
-        } else if (typeof transaction.date === 'string') { // String date (e.g., from manual input or fallback)
-            const parts = transaction.date.split('/');
-            transactionDate = (parts.length === 3) ? new Date(`${parts[2]}-${parts[1]}-${parts[0]}`) : null;
-        } else {
-            transactionDate = null;
-        }
-
+        // transaction.date est déjà un objet Date JS
+        const transactionDate = transaction.date; 
         if (!transactionDate || isNaN(transactionDate.getTime())) return; // Skip invalid dates
         
         const month = transactionDate.getMonth();
@@ -213,6 +203,7 @@ export function renderCategorySummary(transactions) {
         row.innerHTML = `
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${formatCategoryName(category)}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-green-600">${income.toFixed(2).replace('.', ',')} €</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-red-600">${expense.toFixed(2).replace('.', ',')} €</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-red-600">${expense.toFixed(2).replace('.', ',')} €</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium ${balanceClass}">${balance.toFixed(2).replace('.', ',')} €</td>
         `;
