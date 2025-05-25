@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APEL - Gestion Comptable</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Firebase SDKs (v8 compat) -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- html2canvas for capturing DOM elements -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- jsPDF for generating PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
+
+        <!-- Authentication Screen -->
+        <div id="auth-screen" class="flex items-center justify-center min-h-screen bg-gray-100 hidden">
+            <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
+                <h1 class="text-2xl font-bold text-center text-indigo-800 mb-6">Connexion APEL</h1>
+                <form id="login-form">
+                    <div class="mb-4">
+                        <label for="login-email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input type="email" id="login-email" required class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 px-3 border">
+                    </div>
+                    <div class="mb-6">
+                        <label for="login-password" class="block text-sm font-medium text-gray-700 mb-1">Mot de passe</label>
+                        <input type="password" id="login-password" required class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 px-3 border">
+                    </div>
+                    <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-lg font-medium transition-colors">
+                        Se connecter
+                    </button>
+                    <p id="login-error" class="text-red-500 text-sm mt-3 text-center hidden"></p>
+                </form>
+            </div>
+        </div>
+
+        <!-- Dashboard Screen (hidden by default) -->
+        <div id="dashboard-screen" class="hidden">
+            <header class="bg-white shadow-md">
+                <div class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex justify-between items-center">
+                    <h1 class="text-2xl font-bold text-indigo-800">APEL - Gestion Comptable V2</h1>
+                    <div class="flex items-center gap-4">
+                        <label for="school-year-select" class="text-sm text-gray-600">Année scolaire:</label>
+                        <select id="school-year-select" class="rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-1 px-2 text-sm">
+                            <!-- Options générées par JS -->
+                        </select>
+                        <button id="logout-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded-md text-sm transition-colors">
+                            Déconnexion
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <main class="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+                <!-- Résumé financier -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
+                        <h2 class="text-lg font-semibold text-gray-700 mb-2">Recettes</h2>
+                        <p class="text-2xl font-bold text-green-600" id="total-income">Chargement...</p>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-red-500">
+                        <h2 class="text-lg font-semibold text-gray-700 mb-2">Dépenses</h2>
+                        <p class="text-2xl font-bold text-red-600" id="total-expense">Chargement...</p>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
+                        <h2 class="text-lg font-semibold text-gray-700 mb-2">Solde</h2>
+                        <p class="text-2xl font-bold text-blue-600" id="balance">Chargement...</p>
+                    </div>
+                </div>
+
+                <!-- Onglets -->
+                <div class="bg-white rounded-lg shadow-md mb-8">
+                    <div class="flex border-b">
+                        <button id="tab-transactions" class="tab-active px-6 py-3 text-sm font-medium flex-1 text-center">Transactions</button>
+                        <button id="tab-report" class="px-6 py-3 text-sm font-medium flex-1 text-center text-gray-600">Bilan Annuel</button>
+                    </div>
+
+                    <!-- Section Transactions -->
+                    <div id="section-transactions" class="p-6">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                            <h2 class="text-xl font-semibold text-gray-800">Liste des transactions</h2>
+                            <button id="add-transaction-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                                Ajouter une transaction
+                            </button>
+                        </div>
+
+                        <!-- Filtres et Recherche -->
+                        <div class="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div>
+                                <label for="filter-type" class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                                <select id="filter-type" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 px-3 border">
+                                    <option value="all">Tous</option>
+                                    <option value="income">Recettes</option>
+                                    <option value="expense">Dépenses</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="filter-category" class="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
+                                <select id="filter-category" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 px-3 border">
+                                    <option value="all">Toutes</option>
+                                    <!-- Options générées par JS -->
+                                </select>
+                            </div>
+                            <div>
+                                <label for="filter-date" class="block text-sm font-medium text-gray-700 mb-1">Période</label>
+                                <select id="filter-date" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 px-3 border">
+                                    <option value="all">Toute l'année</option>
+                                    <option value="current-month">Mois en cours</option>
+                                    <option value="last-month">Mois précédent</option>
+                                    <option value="current-trimester">Trimestre en cours</option>
+                                </select>
+                            </div>
+                            <div class="md:col-span-2 lg:col-span-1">
+                                <label for="search-term" class="block text-sm font-medium text-gray-700 mb-1">Recherche</label>
+                                <input type="text" id="search-term" placeholder="Description, événement, propriétaire..." class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 px-3 border">
+                            </div>
+                        </div>
+
+                        <!-- Tableau des transactions -->
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort-key="date">Date <i class="fas fa-sort text-gray-400 ml-1"></i></th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort-key="description">Description <i class="fas fa-sort text-gray-400 ml-1"></i></th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort-key="evenement">Événement <i class="fas fa-sort text-gray-400 ml-1"></i></th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort-key="proprietaire">Propriétaire <i class="fas fa-sort text-gray-400 ml-1"></i></th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort-key="category">Catégorie <i class="fas fa-sort text-gray-400 ml-1"></i></th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort-key="amount">Montant <i class="fas fa-sort text-gray-400 ml-1"></i></th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" data-sort-key="type">Type <i class="fas fa-sort text-gray-400 ml-1"></i></th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Facture</th>
+                                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="transactions-table-body" class="bg-white divide-y divide-gray-200">
+                                    <!-- Les transactions seront ajoutées ici dynamiquement -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="no-transactions" class="text-center py-8 text-gray-500">
+                            Aucune transaction enregistrée
+                        </div>
+
+                        <!-- Pagination Controls -->
+                        <div class="flex justify-between items-center mt-6">
+                            <button id="prev-page-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded-md text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                Précédent
+                            </button>
+                            <span id="page-info" class="text-sm text-gray-600">Page 1 sur 1</span>
+                            <button id="next-page-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-3 py-1 rounded-md text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                Suivant
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Section Bilan Annuel -->
+                    <div id="section-report" class="p-6 hidden">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-6">Bilan Annuel</h2>
+                        
+                        <!-- NOUVEAU : Bouton Exporter PDF -->
+                        <div class="mb-6 text-right">
+                            <button id="export-pdf-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                                <span id="export-pdf-button-content"><i class="fas fa-file-pdf mr-2"></i>Exporter en PDF</span>
+                            </button>
+                        </div>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <!-- Graphique évolution mensuelle -->
+                            <div id="monthly-chart-container" class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                                <h3 class="text-lg font-medium text-gray-700 mb-4">Évolution mensuelle</h3>
+                                <div class="h-64">
+                                    <canvas id="monthly-chart"></canvas>
+                                </div>
+                            </div>
+                            
+                            <!-- Graphique répartition -->
+                            <div id="expenses-chart-container" class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                                <h3 class="text-lg font-medium text-gray-700 mb-4">Répartition des dépenses</h3>
+                                <div class="h-64">
+                                    <canvas id="expenses-chart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="category-summary-container" class="mt-8 bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                            <h3 class="text-lg font-medium text-gray-700 mb-4">Résumé par catégorie</h3>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Catégorie</th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recettes</th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dépenses</th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Solde</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="category-summary" class="bg-white divide-y divide-gray-200">
+                                        <!-- Le résumé par catégorie sera ajouté ici dynamiquement -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Modal d'ajout/modification de transaction -->
+            <div id="transaction-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 hidden">
+                <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 flex flex-col max-h-[90vh]">
+                    <div class="border-b px-6 py-4 flex justify-between items-center">
+                        <h3 id="modal-title" class="text-lg font-medium text-gray-900">Ajouter une transaction</h3>
+                        <button type="button" class="text-gray-400 hover:text-gray-600" id="close-modal-x">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="flex-grow overflow-y-auto px-6 py-4 custom-modal-scrollbar">
+                        <form id="transaction-form">
+                            <input type="hidden" id="transaction-id">
+                            
+                            <div class="mb-4">
+                                <label for="transaction-date" class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                                <input type="date" id="transaction-date" required class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 px-3 border">
+                            </div>
+                            <div class="mb-4">
+                                <label for="transaction-description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                                <input type="text" id="transaction-description" required class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 px-3 border">
+                            </div>
+                            <div class="mb-4">
+                                <label for="transaction-evenement" class="block text-sm font-medium text-gray-700 mb-1">Événement</label>
+                                <input type="text" id="transaction-evenement" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 px-3 border">
+                            </div>
+                            <div class="mb-4">
+                                <label for="transaction-proprietaire" class="block text-sm font-medium text-gray-700 mb-1">Propriétaire</label>
+                                <input type="text" id="transaction-proprietaire" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 px-3 border">
+                            </div>
+                            <div class="mb-4">
+                                <label for="transaction-category" class="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
+                                <select id="transaction-category" required class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 px-3 border">
+                                    <option value="">Sélectionner une catégorie</option>
+                                    <option value="cotisations">Cotisations</option>
+                                    <option value="evenement">Événement</option>
+                                    <option value="dons">Dons</option>
+                                    <option value="subventions">Subventions</option>
+                                    <option value="fournitures">Fournitures</option>
+                                    <option value="sorties">Sorties scolaires</option>
+                                    <option value="equipement">Équipement</option>
+                                    <option value="banque">Banque</option>
+                                    <option value="cadeau">Cadeau</option>
+                                    <option value="brocante">Brocante</option>
+                                    <option value="produits">Produits</option>
+                                    <option value="autre">Autre</option>
+                                </select>
+                            </div>
+                            <div class="mb-4">
+                                <label for="transaction-amount" class="block text-sm font-medium text-gray-700 mb-1">Montant (€)</label>
+                                <input type="number" id="transaction-amount" step="0.01" min="0" required class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 px-3 border">
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                                <div class="flex gap-4">
+                                    <label class="inline-flex items-center">
+                                        <input type="radio" name="transaction-type" value="income" checked class="form-radio text-indigo-600">
+                                        <span class="ml-2">Recette</span>
+                                    </label>
+                                    <label class="inline-flex items-center">
+                                        <input type="radio" name="transaction-type" value="expense" class="form-radio text-indigo-600">
+                                        <span class="ml-2">Dépense</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="mb-4">
+                                <label for="transaction-moyen-paiement" class="block text-sm font-medium text-gray-700 mb-1">Moyen Paiement</label>
+                                <input type="text" id="transaction-moyen-paiement" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 px-3 border">
+                            </div>
+                            <div class="mb-4">
+                                <label for="transaction-paiment-plus" class="block text-sm font-medium text-gray-700 mb-1">Paiement Plus (Détails)</label>
+                                <textarea id="transaction-paiment-plus" rows="2" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 px-3 border"></textarea>
+                            </div>
+                            <div class="mb-4">
+                                <label for="transaction-facture" class="block text-sm font-medium text-gray-700 mb-1">Lien Facture</label>
+                                <input type="text" id="transaction-facture" placeholder="https://..." class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 px-3 border">
+                            </div>
+                            <div class="mb-4">
+                                <label for="transaction-notes" class="block text-sm font-medium text-gray-700 mb-1">Notes (générales)</label>
+                                <textarea id="transaction-notes" rows="2" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2 px-3 border"></textarea>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="bg-gray-50 px-6 py-4 flex justify-end gap-3 border-t">
+                        <button type="button" id="cancel-transaction" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200">Annuler</button>
+                        <button type="submit" form="transaction-form" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Enregistrer</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal de confirmation de suppression -->
+            <div id="delete-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 hidden">
+                <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+                    <div class="border-b px-6 py-4">
+                        <h3 class="text-lg font-medium text-gray-900">Confirmer la suppression</h3>
+                    </div>
+                    <div class="px-6 py-4">
+                        <p class="text-gray-700">Êtes-vous sûr de vouloir supprimer cette transaction ? Cette action est irréversible.</p>
+                    </div>
+                    <div class="bg-gray-50 px-6 py-4 flex justify-end gap-3">
+                        <button id="cancel-delete" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200">Annuler</button>
+                        <button id="confirm-delete" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Supprimer</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase Configuration -->
+    <script type="module" src="js/config.js"></script>
+    <!-- Authentication Logic -->
+    <script type="module" src="js/auth.js"></script>
+    <!-- Helper Utilities -->
+    <script type="module" src="js/utils.js"></script>
+    <!-- Transaction CRUD Operations (Firebase Interaction) -->
+    <script type="module" src="js/transactions-crud.js"></script>
+    <!-- User Interface Management (DOM Manipulation) -->
+    <script type="module" src="js/ui.js"></script>
+    <!-- Reporting and Charting Logic -->
+    <script type="module" src="js/reports.js"></script>
+    <!-- Main Application Logic (Orchestration) -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
