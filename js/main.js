@@ -488,7 +488,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else {
                         const validCategories = [
                             "cotisations", "evenement", "dons", "subventions", "fournitures", 
-                            "sorties", "equipement", "banque", "cadeau", "brocante", "produits", "autre"
+                            "sorties", "equipement", "banque", "cadeau", "brocante", "récré gourmande", "autre"
                         ];
                         if (!validCategories.includes(category)) {
                             category = "autre";
