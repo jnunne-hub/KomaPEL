@@ -464,7 +464,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         'cadeau': 'cadeau', 'cadeaux classe': 'cadeau', 'cadeaux mme celine': 'cadeau', 
                         'cadeaux mme stephanie': 'cadeau', 'cadeaux isabelle': 'cadeau',
                         
-                        'produits': 'produits', 'callendrier': 'produits', 'catalogue': 'produits', 'shein catalogue printemps': 'produits',
+                        'Recré gourmande': 'produits', 'callendrier': 'produits', 'catalogue': 'produits', 'shein catalogue printemps': 'produits',
                         'foir fouille catalogue printemps': 'produits', 'action catalogue': 'produits', 
                         'eco affaire thermo': 'produits', 'sumup marche de printemps': 'produits',
                         'renvoi colis la poste': 'produits', 'regul ligne 96': 'produits', 
